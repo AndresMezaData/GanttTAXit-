@@ -136,25 +136,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:#1F2937}
 </div>
 
 <script>
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTabwM_i1M1kkAa1LrxynPS9IGE1OOl_mj0vtnhaUzdw-G4fjGH55AOfP2ISixz2w/pub?output=csv';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTabwM_i1M1kkAa1LrxynPS9IGE1OOl_mj0vtnhaUzdw-G4fjGH55AOfP2ISixz2w/pub?gid=2087250348&single=true&output=csv';
 
 const months = ['May','Jun','Jul','Ago','Sep','Oct'];
 const icons = {done:'\u2713',progress:'\u25B6',pending:'\u25CB','en desarrollo':'\u25B6',completado:'\u2713'};
 
+function parseLine(line) {
+  const vals = [];
+  let current = '', inQuotes = false;
+  for (let ch of line) {
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { vals.push(current.trim()); current = ''; }
+    else { current += ch; }
+  }
+  vals.push(current.trim());
+  return vals;
+}
+
 function parseCSV(text) {
   const lines = text.split('\n').filter(l => l.trim());
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
-  return lines.slice(1).map(line => {
-    const vals = [];
-    let current = '', inQuotes = false;
-    for (let ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === ',' && !inQuotes) { vals.push(current.trim()); current = ''; }
-      else { current += ch; }
+  // Find the header row - look for row containing "Tarea"
+  let headerIdx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].toLowerCase().includes('tarea') && lines[i].toLowerCase().includes('fase')) {
+      headerIdx = i;
+      break;
     }
-    vals.push(current.trim());
+  }
+  const headers = parseLine(lines[headerIdx]).map(h => h.replace(/"/g,''));
+  return lines.slice(headerIdx + 1).map(line => {
+    const vals = parseLine(line);
     const obj = {};
-    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/"/g,''));
     return obj;
   });
 }
